@@ -349,7 +349,7 @@ def main():
         default="localhost", help="smtp server host name"),
     parser.add_option( "--smtp_port",
         action="store", type="int", dest="mail_port",
-        default="587", help="smtp server port number"),
+        default="25", help="smtp server port number"),
     parser.add_option("--smtp_user",
         action="store", type="string", dest="mail_user",
         default="", help="Username for smtp authentification"),
@@ -361,7 +361,6 @@ def main():
     if Options.verbose:
         print "SMPT Server infos: %s:%d (%s:%s)" % (Options.mail_host ,Options.mail_port, Options.mail_user ,Options.mail_pass)
         # Setup the API to use local USB devices
-    #fixme dest_email = Options.email
     print('Find public IP...')
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("gmail.com",80))
@@ -384,6 +383,8 @@ def main():
         AllSensors[sensor.get_hardwareId()]=trec;
         sensor = sensor.nextTemperature()
     server=None
+    if len(AllSensors)==0:
+        sys.exit("No Yocto-Thermocouple detected")        
     try:
         print('Starting HTTP server...')
         SocketServer.TCPServer.allow_reuse_address = True
