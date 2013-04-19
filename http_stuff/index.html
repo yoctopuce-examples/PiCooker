@@ -1,0 +1,55 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+	<title>PI Cooker</title>
+	<meta name="description" content="Pi cooker .">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf8">
+	<link href="/style.css" rel="stylesheet" type="text/css">
+
+	<script>
+	function SelectSensor(){
+	    var dropdown = document.getElementById('sensorlist');
+	    var idx = dropdown.selectedIndex;
+	    var sens = dropdown.options[idx].value;
+    	var f = document.getElementById("content_iframe");
+		var req ="/detail.html?rand="+Math.random();
+		req+="&sens="+sens;
+		f.src = req;
+    }
+
+  
+
+	function RefreshSensorList()
+	{ 
+	  	var HttpRequest = (window.XMLHttpRequest) ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
+  		HttpRequest.onreadystatechange = function() { 
+  			if(HttpRequest.readyState == 4) { 
+    			if(HttpRequest.status == 200 || HttpRequest.status == 304) { 
+      				options=JSON.parse(HttpRequest.responseText);
+      				var select = document.getElementById("sensorlist");
+					for (var i = 0; i < options.length; i++) {
+					    var opt = options[i];
+					    var el = document.createElement("option");
+					    el.textContent = opt['name'];
+					    el.value = opt['id'];
+					    select.appendChild(el);
+					}
+    			}
+			}
+  		}
+  		HttpRequest.open("GET",'/list.json',true);
+  		HttpRequest.send();
+	} 
+
+	</script>
+
+</head>
+<body>
+	<h1>Pi Cooker</h1>
+	<select onchange="SelectSensor()" id="sensorlist">
+	</select> <br/>
+	<iframe src="detail.html" id="content_iframe" >
+	</iframe>
+	<script type="text/javascript">setTimeout("RefreshSensorList()",100);</script>
+</body>
+</html>

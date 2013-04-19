@@ -33,9 +33,26 @@ Options=None
 MyIP=""
 AllSensors ={}
 
+
+def SendEmail(strFrom,strTo,msgRoot):
+    if Options.verbose:
+        print "Send email from %s to %s with SMPT infos: %s:%d (%s:%s)" % (strFrom,strTo,Options.mail_host ,Options.mail_port, Options.mail_user ,Options.mail_pass)
+    mailServer = smtplib.SMTP(Options.mail_host,Options.mail_port)
+    mailServer.ehlo()
+    mailServer.starttls()
+    mailServer.ehlo()
+    if Options.mail_user!="":
+        mailServer.login(Options.mail_user, Options.mail_pass)
+    mailServer.sendmail(strFrom, strTo, msgRoot.as_string())
+    mailServer.close()
+    if Options.verbose:
+        print "Email succesfully sent."
+
+
 class TempRecorder (threading.Thread):
     def __init__(self, sensor,defaultEmail):
         threading.Thread.__init__(self)
+        self._lock = threading.Lock()
         self.daemon = True
         self._temp_sensor=sensor;
         self._recording=False
@@ -67,15 +84,18 @@ class TempRecorder (threading.Thread):
     def startRecord(self):
         if self._recording:
             return
-        print("%s Start recording"%self.getName())
+        msg="%s Start recording"%self.getName()
+        print msg
         self._targetReached=False
         plt.clf()
         self._recording_data_x = []
         self._recording_data_y = []
         self._recording_starttime = datetime.datetime.today()
         self._lastRecorded = datetime.datetime.today()
-        self._graphResolution =1 
+        self._graphResolution =5 
         self._recording = True
+        self.plotGraph()
+        self.sendResult(msg,self._lastValue)
 
     def stopRecord(self):
         if not self._recording:
@@ -98,7 +118,7 @@ class TempRecorder (threading.Thread):
             self._recording_data_y.append(temp)
             self._recording_data_x.append(from_start_minutes)
             self._lastRecorded=now;
-            if len(self._recording_data_y)==500:
+            if len(self._recording_data_y)==300:
                 newres= self._graphResolution*2;
                 if Options.verbose:
                     print("%s increase graph interval (%d to %d)"%(self.getName(),self._graphResolution,newres))
@@ -124,7 +144,9 @@ class TempRecorder (threading.Thread):
 
     def plotGraph(self):
         global Options
+        self._lock.acquire()
         if self._last_plot_size == len(self._recording_data_y):
+            self._lock.release()
             return
         start = datetime.datetime.today()
         self._last_plot_size=len(self._recording_data_y)
@@ -135,6 +157,7 @@ class TempRecorder (threading.Thread):
         if Options.verbose:
             delta = datetime.datetime.today() -start
             print("%s: graph rendering took %d seconds for %d points"%(self.getName(),delta.total_seconds(),self._last_plot_size))
+        self._lock.release()
 
     def readGraph(self, out_file):
         f = open(self._plotfile)
@@ -163,7 +186,7 @@ class TempRecorder (threading.Thread):
         f.close()
         # Create the root message and fill in the from, to, and subject headers
         msgRoot = MIMEMultipart('related')
-        msgRoot['Subject'] = "PiCooker: " + title
+        msgRoot['Subject'] = "Pi Cooker: " + title
         msgRoot['From'] = strFrom
         msgRoot['To'] = strTo
         msgRoot.preamble = 'This is a multi-part message in MIME format.'
@@ -182,24 +205,15 @@ class TempRecorder (threading.Thread):
 
         # This example assumes the image is in the current directory
         fp = open(self._plotfile, 'rb')
-        msgImage = MIMEImage(fp.read())
+        img=fp.read()
+        print("img size= %d"%len(img))
+        msgImage = MIMEImage(img)
         fp.close()
 
         # Define the image's ID as referenced above
         msgImage.add_header('Content-ID', '<image1>')
         msgRoot.attach(msgImage)
-        if Options.verbose:
-            print "Send email with SMPT infos: %s:%d (%s:%s)" % (Options.mail_host ,Options.mail_port, Options.mail_user ,Options.mail_pass)
-        mailServer = smtplib.SMTP(Options.mail_host,Options.mail_port)
-        mailServer.ehlo()
-        mailServer.starttls()
-        mailServer.ehlo()
-        if Options.mail_user!="":
-            mailServer.login(Options.mail_user, Options.mail_pass)
-        mailServer.sendmail(strFrom, strTo, msgRoot.as_string())
-        mailServer.close()
-        if Options.verbose:
-            print "Email with results sent."
+        SendEmail(strFrom,strTo,msgRoot)
 
     def run(self):
         global Options
@@ -213,16 +227,13 @@ class TempRecorder (threading.Thread):
             if(self._recording):                    
                 if not self._targetReached and self._lastValue>= self._target:
                     self.addValue(self._lastValue,True)
-                    msg = "Targeted temperature %sc of %s has benne reached"%(self._target,self.getName())
+                    msg = "Temperature of %sc for  %s has been reached"%(self._target,self.getName())
                     self._targetReached=True
                     self.plotGraph()
                     self.sendResult(msg,self._lastValue)
                 else:
                     self.addValue(self._lastValue)
             YAPI.Sleep(1000)
-
-
-
 
 
 class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
@@ -361,6 +372,7 @@ def main():
     if Options.verbose:
         print "SMPT Server infos: %s:%d (%s:%s)" % (Options.mail_host ,Options.mail_port, Options.mail_user ,Options.mail_pass)
         # Setup the API to use local USB devices
+
     print('Find public IP...')
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("gmail.com",80))
@@ -368,6 +380,32 @@ def main():
     s.close()
     print(' Done (%s)'%MyIP)
 
+    if Options.email!="":
+        # Create the body of the message (a plain-text and an HTML version).
+        baselink = "http://%s:%d" % (MyIP, Options.http_port)
+        link = baselink +"/"
+        text = "Hi!\n The PiCooker v1.2 has been started\n\nYou can start the cooking with the folowing link\n%s" % ( link)
+        f = open("http_stuff/welcomemail.html")
+        html=f.read()
+        html = html.replace("YYYSERVERYYY",baselink)
+        f.close()
+        # Create the root message and fill in the from, to, and subject headers
+        msgRoot = MIMEMultipart('related')
+        msgRoot['Subject'] = "Pi Cooker Started "
+        msgRoot.preamble = 'This is a multi-part message in MIME format.'
+        # Encapsulate the plain and HTML versions of the message body in an
+        # 'alternative' part, so message agents can decide which they want to display.
+        msgAlternative = MIMEMultipart('alternative')
+        msgRoot.attach(msgAlternative)
+        msgText = MIMEText(text)
+        msgAlternative.attach(msgText)
+        # We reference the image in the IMG SRC attribute by the ID we give it below
+        msgText = MIMEText(html, 'html')
+        msgAlternative.attach(msgText)
+        SendEmail(Options.email,Options.email,msgRoot)
+    else:
+        print("No default email configured (skip email configuration test)")
+   
     errmsg=YRefParam()
     print('List All Yoctopuce temerature Sensors.')
     # Setup the API to use local USB devices
@@ -395,7 +433,6 @@ def main():
     except KeyboardInterrupt:
         print '^C received, shutting down server'
         server.socket.close()
-
 
 if __name__ == '__main__':
     main()

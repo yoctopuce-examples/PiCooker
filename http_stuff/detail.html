@@ -1,0 +1,136 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<title>PI Cooker</title>
+<meta name="description" content="Pi cooker .">
+<meta http-equiv="Content-Type" content="text/html; charset=utf8">
+<link href="/style.css" rel="stylesheet" type="text/css">
+
+<script>
+
+var last_timeout =0;
+var last_email="";
+var last_target="";
+var last_recording=false;
+
+function send_refresh(email,target_temp,action)
+{
+	var req ="/status.json?rand="+Math.random()+"&sens=YYYY_HARDWAREID_YYYY";
+	if(email!=last_email)
+		req+="&email="+email;
+	if(target_temp!=last_target)
+		req+="&target="+target_temp;
+	if(action!="")
+		req+="&recording="+action;
+  	var HttpRequest = (window.XMLHttpRequest) ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
+		HttpRequest.onreadystatechange = function() { 
+			if(HttpRequest.readyState == 4) { 
+			if(HttpRequest.status == 200 || HttpRequest.status == 304) { 
+				js_obj=JSON.parse(HttpRequest.responseText);
+				update_display(js_obj)
+			}
+		}
+	}
+	HttpRequest.open("GET",req,true);
+	HttpRequest.send();}
+
+function refresh()
+{
+	send_refresh(document.getElementById("dest_email").value,document.getElementById("target_temp").value,"");
+}
+
+
+function update_display(js_obj)
+{
+	var temp_field=document.getElementById("current_temp");
+	temp_field.innerHTML= ( Math.round(js_obj['temp']*10)/10) +" °C";
+	document.getElementById("plot_img").src = "/plot.png&sens=YYYY_HARDWAREID_YYYY&rand="+Math.random();
+	if(js_obj['recording']){
+		document.getElementById("startrec").style.visibility = "hidden";
+		document.getElementById("stoprec").style.visibility = "visible";
+		document.getElementById("app_status").innerHTML= "Recording<br>";
+	} else {
+		document.getElementById("startrec").style.visibility = "visible";
+		document.getElementById("stoprec").style.visibility = "hidden";
+		document.getElementById("app_status").innerHTML= "<br/>";
+	}
+	last_recording = js_obj['recording'];
+	last_timeout=setTimeout("refresh()",2000);
+}
+
+function StartRec()
+{
+	if (last_timeout!=0)
+		clearTimeout(last_timeout);
+	send_refresh(document.getElementById("dest_email").value,document.getElementById("target_temp").value,"true");
+}
+
+function StopRec()
+{
+	if (last_timeout!=0)
+		clearTimeout(last_timeout);
+	send_refresh(document.getElementById("dest_email").value,document.getElementById("target_temp").value,"false");
+}
+
+
+
+function firstRefresh()
+{ 
+  	var HttpRequest = (window.XMLHttpRequest) ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
+		HttpRequest.onreadystatechange = function() { 
+			if(HttpRequest.readyState == 4) { 
+			if(HttpRequest.status == 200 || HttpRequest.status == 304) { 
+				console.log(HttpRequest.responseText);
+  				js_obj=JSON.parse(HttpRequest.responseText);
+				console.log(js_obj);
+  				document.getElementById("dest_email").value = js_obj['email']
+  				document.getElementById("target_temp").value = js_obj['target']
+  				update_display(js_obj)
+			}
+		}
+	}
+	HttpRequest.open("GET",'/status.json?rand='+Math.random()+"&sens=YYYY_HARDWAREID_YYYY",true);
+	HttpRequest.send();
+} 
+
+
+</script>
+
+</head>
+<body>
+	<div id="content">
+		<table class="state">
+			<tr>
+				<td>
+					<span id="current_temp">0 °C</span>
+				</td>
+				<td>
+					<span id="app_status"></span>
+					<table>
+						<tr >
+							<td class="label">Sensor:</td>
+							<td class="input">YYYY_HARDWAREID_YYYY</td>
+						</tr>
+						<tr >
+							<td class="label">send a mail to </td>
+							<td class="input"><input type="text" id="dest_email"  value=""></td>
+						</tr>
+						<tr>
+							<td class="label">when temp is above </td>
+							<td class="input"><input type="text" id="target_temp"  value=""  size="4"> °C</td>
+						</tr>
+					</table>
+				</td>
+				<td colspan="2">
+					<a class="button" id="startrec" href="javascript:StartRec();">Start Recording</a>
+					<a class="button" id="stoprec" href="javascript:StopRec();">Stop Recording</a>
+				</td>
+			</tr>
+		</table>
+		<div id="img_div">
+			<img src="/plot.png&sens=YYYY_HARDWAREID_YYYY" id="plot_img">
+		</div>
+	</div>
+	<script type="text/javascript">setTimeout("firstRefresh()",100);</script>
+</body>
+</html>
