@@ -87,7 +87,6 @@ class TempRecorder (threading.Thread):
         msg="%s Start recording"%self.getName()
         print msg
         self._targetReached=False
-        plt.clf()
         self._recording_data_x = []
         self._recording_data_y = []
         self._recording_starttime = datetime.datetime.today()
@@ -118,7 +117,7 @@ class TempRecorder (threading.Thread):
             self._recording_data_y.append(temp)
             self._recording_data_x.append(from_start_minutes)
             self._lastRecorded=now;
-            if len(self._recording_data_y)==300:
+            if len(self._recording_data_y)==200:
                 newres= self._graphResolution*2;
                 if Options.verbose:
                     print("%s increase graph interval (%d to %d)"%(self.getName(),self._graphResolution,newres))
@@ -129,10 +128,10 @@ class TempRecorder (threading.Thread):
                     x=(self._recording_data_x[i]+self._recording_data_x[i+1])/2
                     new_x.append(x)
                     new_y.append(y)
-                plt.clf()
                 self._recording_data_x = new_x
                 self._recording_data_y = new_y
                 self._graphResolution = newres
+            self.plotGraph()
 
     def getStatus(self):
         return {
@@ -150,10 +149,12 @@ class TempRecorder (threading.Thread):
             return
         start = datetime.datetime.today()
         self._last_plot_size=len(self._recording_data_y)
-        plt.plot(self._recording_data_x,self._recording_data_y,color="red")
-        plt.ylabel("Temperature")
-        plt.xlabel("Time (minutes)")
-        plt.savefig(self._plotfile)
+        fig1 = plt.figure()
+        sp = fig1.add_subplot(111)
+        sp.plot(self._recording_data_x,self._recording_data_y,color="red")
+        sp.set_ylabel("Temperature")
+        sp.set_xlabel("Time (minutes)")
+        fig1.savefig(self._plotfile)
         if Options.verbose:
             delta = datetime.datetime.today() -start
             print("%s: graph rendering took %d seconds for %d points"%(self.getName(),delta.total_seconds(),self._last_plot_size))
@@ -304,7 +305,6 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             if arg.has_key("sens"):
                 sens = str(arg.get("sens")[0])
                 recorder = AllSensors[sens]
-            recorder.plotGraph()
             self.send_response(200)
             self.send_header('Content-type',    ' image/png')
             self.end_headers()

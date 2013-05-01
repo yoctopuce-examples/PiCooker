@@ -44,7 +44,7 @@ function update_display(js_obj)
 {
 	var temp_field=document.getElementById("current_temp");
 	temp_field.innerHTML= ( Math.round(js_obj['temp']*10)/10) +" °C";
-	document.getElementById("plot_img").src = "/plot.png&sens=YYYY_HARDWAREID_YYYY&rand="+Math.random();
+	document.getElementById("plot_img").src = "/plot.png?sens=YYYY_HARDWAREID_YYYY&rand="+Math.random();
 	if(js_obj['recording']){
 		document.getElementById("startrec").style.visibility = "hidden";
 		document.getElementById("stoprec").style.visibility = "visible";
