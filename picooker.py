@@ -32,6 +32,7 @@ import matplotlib.pyplot as plt
 Options = None
 MyIP = ""
 AllSensors = {}
+HTTP_ROOT = os.path.dirname(os.path.realpath(__file__))+"/http_stuff"
 
 
 def SendEmail(strFrom, strTo, msgRoot):
@@ -250,6 +251,7 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
     def do_GET(self):
         global AllSensors
         global Options
+        global HTTP_ROOT
         if self.path.startswith("/status.json"):
             arg = urlparse.parse_qs(urlparse.urlparse(self.path)[4])
             #by default use the first detected sensor
@@ -293,7 +295,7 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                 sens = str(arg.get("sens")[0])
                 recorder = AllSensors[sens]
             try:
-                f = open("http_stuff/detail.html")  # self.path has /XXXX.XXX
+                f = open(HTTP_ROOT+"/detail.html")  # self.path has /XXXX.XXX
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
                 self.end_headers()
@@ -323,8 +325,8 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
     def translate_path(self, path):
         """translate path given routes"""
         # set default root to cwd
-        root = os.getcwd()
-        root += "/http_stuff"
+        global HTTP_ROOT
+        root = HTTP_ROOT
         # normalize path and prepend root directory
         path = path.split('?', 1)[0]
         path = path.split('#', 1)[0]
@@ -338,6 +340,7 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             if word in (os.curdir, os.pardir):
                 continue
             path = os.path.join(path, word)
+        print("final="+path)
         return path
 
 
@@ -425,6 +428,8 @@ def main():
         AllSensors[sensor.get_hardwareId()] = trec
         sensor = sensor.nextTemperature()
     server = None
+
+
     if len(AllSensors) == 0:
         sys.exit("No Yocto-Thermocouple detected")
     try:
