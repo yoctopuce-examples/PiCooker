@@ -7,10 +7,9 @@ Make sure your Raspberry Pi is up-to-date by running "sudo raspi-config" and by 
 
 If you have never installed a library from PyPI, you must install the pip tool enabling you to download and install a PyPI package. If you have used pip previously on your Raspberry Pi, you can skip this step which is described in the following paragraph. 
 
-To install pip , you need the setuptools package. Install it with the sudo apt-get install python-setuptools command. Then, to install pip itself, there are several methods which are described on this page. On the Raspberry, the simplest way is to use the get-pip script which is available on GitHub. 
+To install pip , you need the setuptools package. Install it with the sudo apt-get install python-setuptools command. Then, to install pip itself, there are several methods which are described on this page. On the Raspberry, the simplest is to install the package python-pip. 
 
-  curl -O https://raw.github.com/pypa/pip/master/contrib/get-pip.py
-	sudo python get-pip.py
+  	sudo apt-get install python-pip
 
 When pip is installed, simply run the pip install command to install a PyPI package. To install the Yoctopuce library, you must therefore run: 
 
