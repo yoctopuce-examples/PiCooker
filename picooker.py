@@ -3,8 +3,11 @@
 """
 PiCooker: a small examples on how to use a Yocto-Thermocouple usb module
 """
-#import stadard functions
-import sys, os, threading, json
+# import standard functions
+import sys
+import os
+import threading
+import json
 import smtplib
 import socket
 import urllib2
@@ -21,24 +24,25 @@ import posixpath
 import SimpleHTTPServer
 import SocketServer
 
+
 # import Yoctopuce Python library (installed form PyPI)
 from yoctopuce.yocto_api import *
 from yoctopuce.yocto_temperature import *
 import matplotlib
-#force matplotlib do not use any Xwindow backend
+# force matplotlib do not use any Xwindow backend
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 Options = None
 MyIP = ""
 AllSensors = {}
-HTTP_ROOT = os.path.dirname(os.path.realpath(__file__))+"/http_stuff"
+HTTP_ROOT = os.path.dirname(os.path.realpath(__file__)) + "/http_stuff"
 
 
 def SendEmail(strFrom, strTo, msgRoot):
     if Options.verbose:
-        print("Send email from %s to %s with SMPT infos: %s:%d (%s:%s)" % (
-        strFrom, strTo, Options.mail_host, Options.mail_port, Options.mail_user, Options.mail_pass))
+        print("Send email from %s to %s with SMPT info: %s:%d (%s:%s)" % (
+            strFrom, strTo, Options.mail_host, Options.mail_port, Options.mail_user, Options.mail_pass))
     mailServer = smtplib.SMTP(Options.mail_host, Options.mail_port)
     mailServer.ehlo()
     mailServer.starttls()
@@ -67,7 +71,7 @@ class TempRecorder(threading.Thread):
         self._recording_data_y = []
         self._plotfile = "http_stuff/plot.%s.png" % self._temp_sensor.get_hardwareId()
         self._targetReached = False
-        self._recording_starttime = datetime.datetime.today()
+        self._recording_start_time = datetime.datetime.today()
         self._lastRecorded = datetime.datetime.today()
 
     def getName(self):
@@ -94,7 +98,7 @@ class TempRecorder(threading.Thread):
         self._targetReached = False
         self._recording_data_x = []
         self._recording_data_y = []
-        self._recording_starttime = datetime.datetime.today()
+        self._recording_start_time = datetime.datetime.today()
         self._lastRecorded = datetime.datetime.today()
         self._graphResolution = 5
         self._recording = True
@@ -117,15 +121,17 @@ class TempRecorder(threading.Thread):
         if delta.total_seconds() > self._graphResolution or force:
             if Options.verbose:
                 print("%s add new value (%d)" % (self.getName(), temp))
-            from_start_time = now - self._recording_starttime
+            from_start_time = now - self._recording_start_time
             from_start_minutes = from_start_time.total_seconds() / 60
             self._recording_data_y.append(temp)
             self._recording_data_x.append(from_start_minutes)
             self._lastRecorded = now
             if len(self._recording_data_y) == 200:
-                newres = self._graphResolution * 2
+                new_resolution = self._graphResolution * 2
                 if Options.verbose:
-                    print("%s increase graph interval (%d to %d)" % (self.getName(), self._graphResolution, newres))
+                    print(
+                        "%s increase graph interval (%d to %d)" % (
+                            self.getName(), self._graphResolution, new_resolution))
                 new_x = []
                 new_y = []
                 for i in range(0, len(self._recording_data_y), 2):
@@ -135,7 +141,7 @@ class TempRecorder(threading.Thread):
                     new_y.append(y)
                 self._recording_data_x = new_x
                 self._recording_data_y = new_y
-                self._graphResolution = newres
+                self._graphResolution = new_resolution
             self.plotGraph()
 
     def getStatus(self):
@@ -181,13 +187,13 @@ class TempRecorder(threading.Thread):
         strFrom = self._email
         strTo = self._email
         # Create the body of the message (a plain-text and an HTML version).
-        baselink = "http://%s:%d" % (MyIP, Options.http_port)
-        link = baselink + "/"
-        text = "Hi!\n%s\n\nYou can see the cooking graph with the folowing link\n%s" % (title, link)
+        base_link = "http://%s:%d" % (MyIP, Options.http_port)
+        link = base_link + "/"
+        text = "Hi!\n%s\n\nYou can see the cooking graph with the following link\n%s" % (title, link)
         f = open("http_stuff/mail.html")
         html = f.read()
         html = html.replace("YYYMSGYYY", title)
-        html = html.replace("YYYSERVERYYY", baselink)
+        html = html.replace("YYYSERVERYYY", base_link)
         html = html.replace("YY000YY", "current value is %2.1f" % temp)
         f.close()
         # Create the root message and fill in the from, to, and subject headers
@@ -244,7 +250,6 @@ class TempRecorder(threading.Thread):
 
 
 class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
-
     def log_message(self, format_arg, *args):
         return
 
@@ -256,21 +261,21 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             arg = urlparse.parse_qs(urlparse.urlparse(self.path)[4])
             #by default use the first detected sensor
             recorder = AllSensors.itervalues().next()
-            if arg.has_key("sens"):
+            if "sens" in arg:
                 sens = str(arg.get("sens")[0])
                 recorder = AllSensors[sens]
-            if arg.has_key("target"):
+            if "target" in arg:
                 target_temp = float(arg.get("target")[0])
                 recorder.setTargetTemp(target_temp)
-            if arg.has_key("email"):
+            if "email" in arg:
                 tmp = str(arg.get("email")[0])
                 if tmp != "":
                     recorder.setEmail(tmp)
-            if arg.has_key("recording"):
-                onoff = str(arg.get("recording")[0])
-                if onoff == 'true':
+            if "recording" in arg:
+                on_off = str(arg.get("recording")[0])
+                if on_off == 'true':
                     recorder.startRecord()
-                elif onoff == 'false':
+                elif on_off == 'false':
                     recorder.stopRecord()
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -291,11 +296,11 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             arg = urlparse.parse_qs(urlparse.urlparse(self.path)[4])
             #by default use the first detected sensor
             recorder = AllSensors.itervalues().next()
-            if arg.has_key("sens"):
+            if 'sens' in arg:
                 sens = str(arg.get("sens")[0])
                 recorder = AllSensors[sens]
             try:
-                f = open(HTTP_ROOT+"/detail.html")  # self.path has /XXXX.XXX
+                f = open(HTTP_ROOT + "/detail.html")  # self.path has /XXXX.XXX
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
                 self.end_headers()
@@ -309,7 +314,7 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             arg = urlparse.parse_qs(urlparse.urlparse(self.path)[4])
             #by default use the first detected sensor
             recorder = AllSensors.itervalues().next()
-            if arg.has_key("sens"):
+            if 'sens' in arg:
                 sens = str(arg.get("sens")[0])
                 recorder = AllSensors[sens]
             self.send_response(200)
@@ -340,7 +345,7 @@ class MyHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             if word in (os.curdir, os.pardir):
                 continue
             path = os.path.join(path, word)
-        print("final="+path)
+        print("final=" + path)
         return path
 
 
@@ -350,6 +355,7 @@ def main():
     global Options
     global MyIP
     sys.stdout.write('PiCooker v1.2 started\n')
+    sys.stdout.write('using Yoctopuce version %s\n' % (YAPI.GetAPIVersion()))
     parser = OptionParser()
     parser.add_option("-v", "--verbose", action="store_true",
                       help="Write output information (not only errors).",
@@ -388,13 +394,13 @@ def main():
 
     if Options.email != "":
         # Create the body of the message (a plain-text and an HTML version).
-        baselink = "http://%s:%d" % (MyIP, Options.http_port)
-        link = baselink + "/"
+        base_link = "http://%s:%d" % (MyIP, Options.http_port)
+        link = base_link + "/"
         text = "Hi!\n The PiCooker v1.2 has been started\n\nYou can start the cooking with the following link\n%s" \
                % link
         f = open("http_stuff/welcomemail.html")
         html = f.read()
-        html = html.replace("YYYSERVERYYY", baselink)
+        html = html.replace("YYYSERVERYYY", base_link)
         f.close()
         # Create the root message and fill in the from, to, and subject headers
         msgRoot = MIMEMultipart('related')
@@ -429,14 +435,14 @@ def main():
         sensor = sensor.nextTemperature()
     server = None
 
-
     if len(AllSensors) == 0:
         sys.exit("No Yocto-Thermocouple detected")
     try:
         print('Starting HTTP server...')
         SocketServer.TCPServer.allow_reuse_address = True
         server = SocketServer.TCPServer(("", Options.http_port), MyHandler)
-        print('HTTP         server started.')
+        print('HTTP server started.')
+        print('You can acces the web interface with http://%s:%d' % (MyIP, Options.http_port))
         server.serve_forever()
         print('---http server stopped')
     except KeyboardInterrupt:
