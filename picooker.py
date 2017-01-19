@@ -360,6 +360,8 @@ def main():
     parser.add_option("-v", "--verbose", action="store_true",
                       help="Write output information (not only errors).",
                       default=False)
+    parser.add_option("-r", action="store", type="string", dest="hub",
+                      default="usb", help="Uses remote IP devices (or VirtalHub), instead of local USB"),
     parser.add_option("-p", "--port",
                       action="store", type="int", dest="http_port",
                       default="8888", help="The port used by the http server"),
@@ -422,7 +424,7 @@ def main():
     errmsg = YRefParam()
     print('List All Yoctopuce temperature Sensors.')
     # Setup the API to use local USB devices
-    if YAPI.RegisterHub("usb", errmsg) != YAPI.SUCCESS:
+    if YAPI.RegisterHub(Options.hub, errmsg) != YAPI.SUCCESS:
         sys.exit("init error" + str(errmsg))
     print('...')
 
